@@ -1,7 +1,8 @@
-package proj4;
-
 import java.io.*;
 import java.net.*;
+import java.nio.*;
+import java.nio.channels.*;
+import java.util.*;
 
 public class Server {
     // Target file for log messages to be written to
@@ -13,7 +14,7 @@ public class Server {
     * Method to print to stdout, or stdout and the log File
     * if it's been defined
     */
-    public void print(String s) {
+    public static void print(String s) {
         if (logFile == null) {
             System.out.println(s);
         } else {
@@ -23,6 +24,7 @@ public class Server {
     }
 
     public static void main(String args[]) {
+        try {
         // Port to run server on (defaults t0 8080, without root access,
         // can't use standard port 80)
         int port = 8080;
@@ -54,23 +56,59 @@ public class Server {
                 }
             }
 
-            private ServerSocket ss = new ServerSocket(port);
-            Socket socket = ss.accept();
+            ServerSocketChannel channel = ServerSocketChannel.open();
+            channel.configureBlocking(false);
+
+            ServerSocket serverSocket = channel.socket();
+            serverSocket.bind(new InetSocketAddress(port));
+
+            Selector selector = Selector.open();
+            channel.register(selector, SelectionKey.OP_ACCEPT);
+            print("Server initialized");
 
             while (true) {
-                Socket client = ss.accept();
+                int readyChannels = selector.select();
 
-                // Get input and output streams to talk to the client
-                BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                PrintWriter out = new PrintWriter(client.getOutputStream());
+                if (readyChannels == 0)
+                    continue;
 
-                out.print("HTTP/1.1 200 \r\n");
+                Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                Iterator<SelectionKey> keyItr = selectedKeys.iterator();
 
-                String line
-                while ((line = in.readLine()) != null) {
-                    if (line.length() == 0)
-                        breka;
-                    out.print(line + "\r\n");
+                while (keyItr.hasNext()) {
+                    SelectionKey key = keyItr.next();
+
+                    if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
+                        Socket newClient = serverSocket.accept();
+                        SocketChannel clientChannel = newClient.getChannel();
+                        clientChannel.configureBlocking(false);
+                        clientChannel.register(selector, SelectionKey.OP_READ);
+                    } else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
+                        SocketChannel clientChannel = (SocketChannel) key.channel();
+
+                        ByteBuffer buffer = ByteBuffer.allocate(512);
+                        buffer.clear();
+                        int read = 0;
+
+                        StringBuilder message = new StringBuilder();
+
+                        while ((read = clientChannel.read(buffer)) > 0) {
+                            buffer.flip();
+                            byte[] bytes = new byte[buffer.limit()];
+                            buffer.get(bytes);
+                            message.append(new String(bytes));
+                            buffer.clear();
+                        }
+
+                        if (read < 0) {
+                            print("Client " + clientChannel + " disconnected.");
+                            clientChannel.close();
+                        } else {
+                            print("Client " + clientChannel + ":\n" + message.toString());
+                        }
+                    }
+
+                    keyItr.remove();
                 }
             }
         }
@@ -83,5 +121,8 @@ public class Server {
                 e.printStackTrace();
             }
         }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
     }
 }

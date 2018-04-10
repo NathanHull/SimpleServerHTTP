@@ -14,32 +14,33 @@ public class Response {
 
     public String toString() {
         StringBuilder response = new StringBuilder();
+        response.append("HTTP/1.1 ");
         response.append(code);
         response.append(" ");
         response.append(status);
-        response.append("\n");
+        response.append("\r\n");
 
         response.append("Connection: ");
         response.append(connection);
-        response.append("\n");
+        response.append("\r\n");
 
         response.append("Content-Type: ");
         response.append(contentType);
-        response.append("\n");
+        response.append("\r\n");
 
         response.append("Content-Length: ");
         response.append(length);
-        response.append("\n");
+        response.append("\r\n");
 
         response.append("Last-Modified: ");
         response.append(lastModified);
-        response.append("\n");
+        response.append("\r\n");
 
         response.append("Date: ");
         response.append(date);
-        response.append("\n");
+        response.append("\r\n");
 
-        response.append("\n");
+        response.append("\r\n");
         response.append(data);
 
         return response.toString();
