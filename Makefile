@@ -1,3 +1,3 @@
-all: Server.java Response.java
+all: Server.java
 	javac Server.java
-	javac Response.java
+	java Server
