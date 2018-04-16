@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import java.nio.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.channels.*;
 import java.util.*;
 import java.text.*;
@@ -39,7 +41,7 @@ public class Server {
         result.append(dateFormat.format(date));
         result.append("\r\n");
 
-        print("Response sent:\n" + result.toString());
+        print("\nResponse sent:\n" + result.toString());
 
         result.append("\r\n");
         result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>501 Not Implemented</title></head><body><h1>Not Implemented</h1><p>The requested OP was not implemented on this server.</p></body></html>");
@@ -60,7 +62,7 @@ public class Server {
         result.append(dateFormat.format(date));
         result.append("\r\n");
 
-        print("Response sent:\n" + result.toString());
+        print("\nResponse sent:\n" + result.toString());
 
         result.append("\r\n");
         result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>");
@@ -81,10 +83,10 @@ public class Server {
         result.append(dateFormat.format(date));
         result.append("\r\n");
 
-        print("Response sent:\n" + result.toString());
+        print("\nResponse sent:\n" + result.toString());
 
         result.append("\r\n");
-        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>304 Not Modified</title></head><body><h1>Not Modified</h1><p>The requested resource has not been changed since the if-modified-since time.</p></body></html>");
+        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>304 Not Modified</title></head><body><h1>Not Modified</h1><p>Resource has not changed since the if modified since.</p></body></html>");
         result.append("\r\n");
 
         return result.toString();
@@ -110,6 +112,7 @@ public class Server {
                 } else if (args[x].equals("-docroot") && x + 1 < args.length) {
                     // Set root directory
                     rootDir = new File(args[x+1]);
+                    print("File set to " + rootDir.getName());
 
                 } else if (args[x].equals("-logfile") && x + 1 < args.length) {
                     // Set log file and it's output/print streams
@@ -127,7 +130,7 @@ public class Server {
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
 
-        ServerSocket serverSocket = channel.socket();
+        ServerSocket serverSocket = serverSocketChannel.socket();
         serverSocketChannel.bind(new InetSocketAddress(port));
 
         Selector selector = Selector.open();
@@ -168,8 +171,11 @@ public class Server {
 
                 if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
 
-                    Socket newClient = serverSocket.accept();
-                    SocketChannel clientChannel = newClient.getChannel();
+                    SocketChannel clientChannel = serverSocketChannel.accept();
+
+                    if (clientChannel == null)
+                        continue;
+
                     clientChannel.configureBlocking(false);
                     clientChannel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 
@@ -177,28 +183,31 @@ public class Server {
 
                     SocketChannel clientChannel = (SocketChannel) key.channel();
 
-                    ByteBuffer buffer = ByteBuffer.allocate(512);
-                    buffer.clear();
+                    ByteBuffer recvBuffer = ByteBuffer.allocate(1024);
+                    recvBuffer.clear();
                     int read = 0;
 
                     StringBuilder messageBuilder = new StringBuilder();
 
-                    while ((read = clientChannel.read(buffer)) > 0) {
-                        buffer.flip();
-                        byte[] bytes = new byte[buffer.limit()];
-                        buffer.get(bytes);
+                    while ((read = clientChannel.read(recvBuffer)) > 0) {
+                        recvBuffer.flip();
+                        byte[] bytes = new byte[recvBuffer.limit()];
+                        recvBuffer.get(bytes);
                         messageBuilder.append(new String(bytes));
-                        buffer.clear();
+                        recvBuffer.clear();
                     }
 
                     if (read < 0) {
-                        clientChannel.close();
+                        continue;
                     } else {
                         String message = messageBuilder.toString();
                         print("Request from Client " + clientChannel.getRemoteAddress() + ":\n" + message.toString());
 
-                        String lines[] = message.split("\n");
+                        String[] lines = message.split("\n");
                         String response = "";
+                        boolean closeAfter = false;
+
+                        byte[] data = null;
 
                         if (!lines[0].substring(0, 3).toUpperCase().equals("GET")) {
                             response = get501String();
@@ -208,16 +217,18 @@ public class Server {
                             print("Searching for file " + resource);
                             boolean foundFile = false;
                             Date ifModifiedSince = null;
-                            boolean closeAfter = false;
 
-                            // Get ifModifiedSince date if exists
-                            for (String token : getTokens) {
-                                String lineTokens[] = token.split(" ");
+                            // Scan through headers, find important ones
+                            for (String line : lines) {
+                                String lineTokens[] = line.split(" ");
+
+                                // Get ifModifiedSince date if exists
                                 if (lineTokens[0].toLowerCase().equals("if-modified-since:")) {
                                     try {
-                                        ifModifiedSince = dateFormat.parse(lineTokens[1]);
+                                        ifModifiedSince = dateFormat.parse(line.substring(19));
                                     } catch (ParseException e) {
-                                        print("If-modified-since parse exception");
+                                        print("If-modified-since date parse exception");
+                                        ifModifiedSince = null;
                                     }
                                     print("If-modified-since date found: " + ifModifiedSince);
                                 }
@@ -239,13 +250,12 @@ public class Server {
                                     foundFile = true;
 
                                     // Check if it's been modified since
-                                    if (ifModifiedSince != null) {
+                                    if (ifModifiedSince != null && ifModifiedSince.compareTo(new Date(file.lastModified())) < 0) {
 
                                         // If file hasn't been modified since...
-                                        if (ifModifiedSince.compareTo(new Date(file.lastModified())) < 0) {
-                                            print("File has not been modified since");
-                                            response = get304String();
-                                        }
+                                        print("File has not been modified since");
+                                        data = null;
+                                        response = get304String();
 
                                     // Or send the file with 200
                                     } else {
@@ -267,11 +277,22 @@ public class Server {
                                         result.append(file.getName().substring(file.getName().lastIndexOf('.') + 1));
                                         result.append("\r\n");
 
-                                        print("Response sent:\n" + result.toString());
+                                        result.append("Content-Length: ");
+                                        result.append(file.length());
+                                        result.append("\r\n");
 
                                         result.append("\r\n");
-                                        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>304 Not Modified</title></head><body><h1>Not Modified</h1><p>The requested resource has not been changed since the if-modified-since time.</p></body></html>");
-                                        result.append("\r\n");
+
+                                        // Get file bytes
+                                        data = new byte[(int) file.length()];
+                                        try {
+                                            FileInputStream fileInputStream = new FileInputStream(file);
+                                            fileInputStream.read(data);
+                                        } catch (FileNotFoundException e) {
+                                            print("File Not Found.");
+                                        }
+
+                                        response = result.toString();
 
                                     }
 
@@ -286,10 +307,24 @@ public class Server {
 
                         }
 
-                        buffer = ByteBuffer.wrap(response.getBytes());
+                        ByteBuffer buffer = ByteBuffer.allocate(50000);
+                        buffer.put(response.getBytes());
+                        print("Response: " + response);
+
+                        if (data != null) {
+                            buffer.put(data);
+                        }
+
+                        buffer.flip();
+
                         while (buffer.hasRemaining()) {
                             clientChannel.write(buffer);
                         }
+
+                        if (closeAfter)
+                            clientChannel.close();
+
+                        clientChannel.socket().close();
                         //clientChannel.close();
                     }
 

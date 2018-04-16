@@ -1,0 +1,74 @@
+Server initialized
+
+Request from Client /0:0:0:0:0:0:0:1:54743:
+GET /~/text.txt HTTP/1.1
+Host: localhost:8080
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:59.0) Gecko/20100101 Firefox/59.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+DNT: 1
+Connection: keep-alive
+Upgrade-Insecure-Requests: 1
+
+
+Searching for file ~/text.txt
+File not found
+
+Response sent:
+HTTP/1.1 404 Not Found
+Date: Mon, 16 Apr 2018 01:34:37 EDT
+
+Response: HTTP/1.1 404 Not Found
+Date: Mon, 16 Apr 2018 01:34:37 EDT
+
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>
+
+Request from Client /0:0:0:0:0:0:0:1:54744:
+GET /text.txt HTTP/1.1
+Host: localhost:8080
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:59.0) Gecko/20100101 Firefox/59.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+DNT: 1
+Connection: keep-alive
+Upgrade-Insecure-Requests: 1
+
+
+Searching for file text.txt
+File found
+Response: HTTP/1.1 200 OK
+Date: Mon, 16 Apr 2018 01:34:41 EDT
+Last-Modified: Mon, 16 Apr 2018 01:31:51 EDT
+Content-Type: txt
+Content-Length: 13
+
+
+Request from Client /0:0:0:0:0:0:0:1:54745:
+GET /text.tx HTTP/1.1
+Host: localhost:8080
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:59.0) Gecko/20100101 Firefox/59.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+DNT: 1
+Connection: keep-alive
+Upgrade-Insecure-Requests: 1
+
+
+Searching for file text.tx
+File not found
+
+Response sent:
+HTTP/1.1 404 Not Found
+Date: Mon, 16 Apr 2018 01:34:46 EDT
+
+Response: HTTP/1.1 404 Not Found
+Date: Mon, 16 Apr 2018 01:34:46 EDT
+
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>
+
+
