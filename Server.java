@@ -36,16 +36,20 @@ public class Server {
         StringBuilder result = new StringBuilder();
         Date date = new Date();
 
-        result.append("HTTP/1.1 501 Not Implemented\r\n");
+        result.append("\r\nHTTP/1.1 501 Not Implemented\r\n");
         result.append("Date: ");
         result.append(dateFormat.format(date));
+        result.append("\r\n");
+        result.append("Content-Type: html");
+        result.append("\r\n");
+        result.append("Content-Length: 208");
         result.append("\r\n");
 
         print("\nResponse sent:\n" + result.toString());
 
         result.append("\r\n");
-        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>501 Not Implemented</title></head><body><h1>Not Implemented</h1><p>The requested OP was not implemented on this server.</p></body></html>");
-        result.append("\r\n");
+        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>501 Not Implemented</title></head><body><h1>Not Implemented</h1><p>The requested OP was not implemented on this server.</p></body></html>");
+        result.append("\n");
 
         return result.toString();
     }
@@ -57,16 +61,20 @@ public class Server {
         StringBuilder result = new StringBuilder();
         Date date = new Date();
 
-        result.append("HTTP/1.1 404 Not Found\r\n");
+        result.append("\r\nHTTP/1.1 404 Not Found\r\n");
         result.append("Date: ");
         result.append(dateFormat.format(date));
+        result.append("\r\n");
+        result.append("Content-Type: html");
+        result.append("\r\n");
+        result.append("Content-Length: 190");
         result.append("\r\n");
 
         print("\nResponse sent:\n" + result.toString());
 
         result.append("\r\n");
-        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>");
-        result.append("\r\n");
+        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>");
+        result.append("\n");
 
         return result.toString();
     }
@@ -78,14 +86,14 @@ public class Server {
         StringBuilder result = new StringBuilder();
         Date date = new Date();
 
-        result.append("HTTP/1.1 304 Not Modified\r\n");
+        result.append("\r\nHTTP/1.1 304 Not Modified\r\n");
         result.append("Date: ");
         result.append(dateFormat.format(date));
         result.append("\r\n");
 
         print("\nResponse sent:\n" + result.toString());
 
-        result.append("\r\n");
+        result.append("\n");
 
         return result.toString();
     }
@@ -127,15 +135,13 @@ public class Server {
 
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
-
-        ServerSocket serverSocket = serverSocketChannel.socket();
         serverSocketChannel.bind(new InetSocketAddress(port));
 
         Selector selector = Selector.open();
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         print("Server initialized\n");
 
-        // Create shutdown hook to close channels/sockets/buffers
+        // Create shutdown hook to close channels/buffers
         Runtime.getRuntime().addShutdownHook(new Thread()
         {
             @Override
@@ -165,7 +171,7 @@ public class Server {
             Iterator<SelectionKey> keyItr = selectedKeys.iterator();
 
             while (keyItr.hasNext()) {
-                    SelectionKey key = keyItr.next();
+                SelectionKey key = keyItr.next();
 
                 if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
 
@@ -175,6 +181,13 @@ public class Server {
                         continue;
 
                     clientChannel.configureBlocking(false);
+                    // try {
+                    //     clientChannel.socket().setSoTimeout(20000);
+                    // } catch (SocketException e) {
+                    //     print("Error establishing timeout");
+                    //     clientChannel.close();
+                    //     continue;
+                    // }
                     clientChannel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 
                 } else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
@@ -196,6 +209,7 @@ public class Server {
                     }
 
                     if (read < 0) {
+                        clientChannel.close();
                         continue;
                     } else {
                         String message = messageBuilder.toString();
@@ -262,7 +276,7 @@ public class Server {
                                         StringBuilder result = new StringBuilder();
                                         Date date = new Date();
 
-                                        result.append("HTTP/1.1 200 OK\r\n");
+                                        result.append("\r\nHTTP/1.1 200 OK\r\n");
 
                                         result.append("Date: ");
                                         result.append(dateFormat.format(date));
@@ -279,6 +293,9 @@ public class Server {
                                         result.append("Content-Length: ");
                                         result.append(file.length());
                                         result.append("\r\n");
+
+                                        print("Response sent:\n");
+                                        print(result.toString());
 
                                         result.append("\r\n");
 
@@ -307,8 +324,8 @@ public class Server {
                         }
 
                         ByteBuffer buffer = ByteBuffer.allocate(500000);
+                        buffer.clear();
                         buffer.put(response.getBytes());
-                        print("Response: " + response);
 
                         if (data != null) {
                             buffer.put(data);
@@ -319,6 +336,8 @@ public class Server {
                         while (buffer.hasRemaining()) {
                             clientChannel.write(buffer);
                         }
+
+                        buffer.clear();
 
                         if (closeAfter)
                             clientChannel.close();
