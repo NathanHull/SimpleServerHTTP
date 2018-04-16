@@ -260,6 +260,7 @@ public class Server {
                                     // Or send the file with 200
                                     } else {
 
+                                        print("Building file packet");
                                         StringBuilder result = new StringBuilder();
                                         Date date = new Date();
 
@@ -307,7 +308,7 @@ public class Server {
 
                         }
 
-                        ByteBuffer buffer = ByteBuffer.allocate(50000);
+                        ByteBuffer buffer = ByteBuffer.allocate(500000);
                         buffer.put(response.getBytes());
                         print("Response: " + response);
 
@@ -325,7 +326,6 @@ public class Server {
                             clientChannel.close();
 
                         clientChannel.socket().close();
-                        //clientChannel.close();
                     }
 
                 }
