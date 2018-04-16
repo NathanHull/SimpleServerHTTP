@@ -86,8 +86,6 @@ public class Server {
         print("\nResponse sent:\n" + result.toString());
 
         result.append("\r\n");
-        result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>304 Not Modified</title></head><body><h1>Not Modified</h1><p>Resource has not changed since the if modified since.</p></body></html>");
-        result.append("\r\n");
 
         return result.toString();
     }
