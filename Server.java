@@ -36,7 +36,7 @@ public class Server {
         StringBuilder result = new StringBuilder();
         Date date = new Date();
 
-        result.append("\r\nHTTP/1.1 501 Not Implemented\r\n");
+        result.append("\r\nHTTP/1.1 Status-Code 501: Not Implemented\r\n");
         result.append("Date: ");
         result.append(dateFormat.format(date));
         result.append("\r\n");
@@ -49,7 +49,7 @@ public class Server {
 
         result.append("\r\n");
         result.append("<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>501 Not Implemented</title></head><body><h1>Not Implemented</h1><p>The requested OP was not implemented on this server.</p></body></html>");
-        result.append("\n");
+        result.append("\r\n");
 
         return result.toString();
     }
@@ -61,7 +61,7 @@ public class Server {
         StringBuilder result = new StringBuilder();
         Date date = new Date();
 
-        result.append("\r\nHTTP/1.1 404 Not Found\r\n");
+        result.append("HTTP/1.1 Status-Code 404: Not Found\r\n");
         result.append("Date: ");
         result.append(dateFormat.format(date));
         result.append("\r\n");
@@ -86,7 +86,7 @@ public class Server {
         StringBuilder result = new StringBuilder();
         Date date = new Date();
 
-        result.append("\r\nHTTP/1.1 304 Not Modified\r\n");
+        result.append("HTTP/1.1 Status-Code 304: Not Modified\r\n");
         result.append("Date: ");
         result.append(dateFormat.format(date));
         result.append("\r\n");
@@ -135,6 +135,7 @@ public class Server {
 
         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
+        serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
         serverSocketChannel.bind(new InetSocketAddress(port));
 
         Selector selector = Selector.open();
@@ -162,10 +163,20 @@ public class Server {
         });
 
         while (true) {
-            int readyChannels = selector.select();
+            int readyChannels = selector.select(2000);
 
-            if (readyChannels == 0)
+            if (readyChannels == 0) {
+                // If there are more keys than 1 (the server channel),
+                // those channels have timed out, close all of them except
+                // the server
+                if (selector.keys().size() > 1) {
+                    for (SelectionKey key : selector.keys()) {
+                        if (key.channel() != serverSocketChannel)
+                            key.channel().close();
+                    }
+                }
                 continue;
+            }
 
             Set<SelectionKey> selectedKeys = selector.selectedKeys();
             Iterator<SelectionKey> keyItr = selectedKeys.iterator();
@@ -181,13 +192,8 @@ public class Server {
                         continue;
 
                     clientChannel.configureBlocking(false);
-                    // try {
-                    //     clientChannel.socket().setSoTimeout(20000);
-                    // } catch (SocketException e) {
-                    //     print("Error establishing timeout");
-                    //     clientChannel.close();
-                    //     continue;
-                    // }
+                    clientChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+                    clientChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
                     clientChannel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 
                 } else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
@@ -223,6 +229,7 @@ public class Server {
 
                         if (!lines[0].substring(0, 3).toUpperCase().equals("GET")) {
                             response = get501String();
+                            //closeAfter = true;
                         } else {
                             String getTokens[] = lines[0].split(" ");
                             String resource = getTokens[1].substring(1).toLowerCase();
@@ -339,10 +346,9 @@ public class Server {
 
                         buffer.clear();
 
-                        if (closeAfter)
+                        if (closeAfter) {
                             clientChannel.close();
-
-                        clientChannel.socket().close();
+                        }
                     }
 
                 }
